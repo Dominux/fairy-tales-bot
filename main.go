@@ -20,8 +20,31 @@ func main() {
 		return
 	}
 
-	b.Handle("/hello", func(c tele.Context) error {
-		return c.Send("Sup!")
+	var (
+		crudMenu = &tele.ReplyMarkup{ResizeKeyboard: true, OneTimeKeyboard: true}
+
+		btnAdd    = crudMenu.Text("➕ Добавить сказку")
+		btnCancel = crudMenu.Text("X Отменить")
+	)
+
+	b.Handle("/start", func(c tele.Context) error {
+		crudMenu.Reply(
+			crudMenu.Row(btnAdd),
+		)
+
+		return c.Send("Hello!", crudMenu)
+	})
+
+	b.Handle(&btnAdd, func(c tele.Context) error {
+		crudMenu.Reply(
+			crudMenu.Row(btnCancel),
+		)
+
+		return c.Send("Как сказка будет называться?", crudMenu)
+	})
+
+	b.Handle(&btnCancel, func(c tele.Context) error {
+		return c.Send("Создание сказки отмененно")
 	})
 
 	b.Start()
