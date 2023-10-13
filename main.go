@@ -47,5 +47,7 @@ func main() {
 		return c.Send("Создание сказки отмененно")
 	})
 
+	log.Print("Starting bot")
+
 	b.Start()
 }
