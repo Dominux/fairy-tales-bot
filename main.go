@@ -6,7 +6,6 @@ import (
 	"time"
 
 	tele "gopkg.in/telebot.v3"
-	"gopkg.in/telebot.v3/middleware"
 )
 
 func main() {
@@ -20,8 +19,6 @@ func main() {
 		log.Fatal(err)
 		return
 	}
-
-	b.Use(middleware.Logger())
 
 	b.Handle("/hello", func(c tele.Context) error {
 		return c.Send("Sup!")
