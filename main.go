@@ -3,11 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	tele "gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v3/middleware"
 
 	"github.com/Dominux/fairy-tales-bot/internal/common"
 	"github.com/Dominux/fairy-tales-bot/internal/handlers"
@@ -18,6 +20,7 @@ var (
 
 	btnAdd    = menu.Text("➕ Добавить сказку")
 	btnCancel = menu.Text("❌ Отменить")
+	btnList   = menu.Text("📚 Список сказок")
 )
 
 func main() {
@@ -42,6 +45,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 		return
+	}
+
+	// allowing only 1 user to use our bot
+	{
+		allowedUserStr := os.Getenv("ALLOWED_USER_ID")
+		allowedUser, err := strconv.ParseInt(allowedUserStr, 10, 64)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		bot.Use(middleware.Whitelist(allowedUser))
 	}
 
 	ftHandler := handlers.NewFairyTalesHandler(db, menu, &btnAdd, &btnCancel)
