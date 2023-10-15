@@ -14,9 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const (
-	ftGetPrefix = "/get_ft"
-)
+const ftGetPrefix = "/get_ft"
 
 type FairyTalesHandler struct {
 	service *services.FairyTalesService
