@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/Dominux/fairy-tales-bot/internal/entities"
@@ -18,6 +19,14 @@ func NewFairyTalesService(db *sqlx.DB) FairyTalesService {
 
 func (s *FairyTalesService) InitCreating(init_msg_id int) error {
 	return s.repo.Create(init_msg_id)
+}
+
+func (s *FairyTalesService) List() ([]entities.FairyTale, error) {
+	return s.repo.List()
+}
+
+func (s *FairyTalesService) GetByID(id uuid.UUID) (entities.FairyTale, error) {
+	return s.repo.GetByID(id)
 }
 
 func (s *FairyTalesService) GetUncompleted() (entities.FairyTale, error) {

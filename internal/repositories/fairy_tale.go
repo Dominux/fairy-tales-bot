@@ -24,10 +24,24 @@ func (repo FairyTalesRepository) Create(init_msg_id int) error {
 	return err
 }
 
+func (repo FairyTalesRepository) List() ([]entities.FairyTale, error) {
+	query := `SELECT * FROM fairy_tales`
+	fts := []entities.FairyTale{}
+	err := repo.db.Select(&fts, query)
+	return fts, err
+}
+
 func (repo FairyTalesRepository) GetUncompleted() (entities.FairyTale, error) {
 	query := `SELECT * FROM fairy_tales WHERE NOT stage = $1`
 	var ft entities.FairyTale
 	err := repo.db.QueryRowx(query, entities.Created).StructScan(&ft)
+	return ft, err
+}
+
+func (repo FairyTalesRepository) GetByID(id uuid.UUID) (entities.FairyTale, error) {
+	query := `SELECT * FROM fairy_tales WHERE id = $1`
+	var ft entities.FairyTale
+	err := repo.db.QueryRowx(query, id).StructScan(&ft)
 	return ft, err
 }
 

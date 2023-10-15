@@ -1,14 +1,21 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
+	"strings"
 
 	tele "gopkg.in/telebot.v3"
 
 	"github.com/Dominux/fairy-tales-bot/internal/common"
 	"github.com/Dominux/fairy-tales-bot/internal/entities"
 	"github.com/Dominux/fairy-tales-bot/internal/services"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+)
+
+const (
+	ftGetPrefix = "/get_ft"
 )
 
 type FairyTalesHandler struct {
@@ -17,17 +24,16 @@ type FairyTalesHandler struct {
 	menu      *tele.ReplyMarkup
 	btnAdd    *tele.Btn
 	btnCancel *tele.Btn
+	btnList   *tele.Btn
 }
 
-func NewFairyTalesHandler(db *sqlx.DB, menu *tele.ReplyMarkup, btnAdd *tele.Btn, btnCancel *tele.Btn) FairyTalesHandler {
+func NewFairyTalesHandler(db *sqlx.DB, menu *tele.ReplyMarkup, btnAdd *tele.Btn, btnCancel *tele.Btn, btnList *tele.Btn) FairyTalesHandler {
 	service := services.NewFairyTalesService(db)
-	return FairyTalesHandler{service: &service, menu: menu, btnAdd: btnAdd, btnCancel: btnCancel}
+	return FairyTalesHandler{service: &service, menu: menu, btnAdd: btnAdd, btnCancel: btnCancel, btnList: btnList}
 }
 
 func (h *FairyTalesHandler) OnStart(c tele.Context) error {
-	h.menu.Reply(
-		h.menu.Row(*h.btnAdd),
-	)
+	h.buildDefaultMenu()
 
 	return c.Send("Здарова!", h.menu)
 }
@@ -62,13 +68,16 @@ func (h *FairyTalesHandler) OnBtnCancel(c tele.Context) error {
 	}()
 
 	// replying with menu
-	h.menu.Reply(
-		h.menu.Row(*h.btnAdd),
-	)
+	h.buildDefaultMenu()
 	return c.Send("Создание сказки отмененно", h.menu)
 }
 
 func (h *FairyTalesHandler) OnText(c tele.Context) error {
+	msgText := c.Message().Text
+	if strings.HasPrefix(msgText, ftGetPrefix) {
+		return h.OnGet(c)
+	}
+
 	// getting fairy tale stage
 	ft, err := h.service.GetUncompleted()
 	if err != nil || ft.Stage != entities.Inited {
@@ -76,8 +85,7 @@ func (h *FairyTalesHandler) OnText(c tele.Context) error {
 	}
 
 	// registering fairy tale name
-	name := c.Message().Text
-	h.service.RegisterName(name)
+	h.service.RegisterName(msgText)
 
 	return c.Send("Теперь запиши голосовое сообщение со сказкой")
 }
@@ -116,8 +124,63 @@ func (h *FairyTalesHandler) OnVoice(c tele.Context) error {
 	}()
 
 	// sending message about finishing fairy tale creation
+	h.buildDefaultMenu()
+	return c.Send("Сказка успешно сохранена", h.menu)
+}
+
+func (h *FairyTalesHandler) OnList(c tele.Context) error {
+	fts, _ := h.service.List()
+
+	msg := ""
+	for _, ft := range fts {
+		cmd := formatGetCmd(ft.ID)
+		line := fmt.Sprintf("• %s — %s\n", *ft.Name, cmd)
+		msg += line
+	}
+
+	return c.Send(msg)
+}
+
+func (h *FairyTalesHandler) OnGet(c tele.Context) error {
+	// getting and parsing fairy tale id
+	msgText := c.Message().Text
+	ftID, err := getIDFromCmd(msgText)
+	if err != nil {
+		return c.Delete()
+	}
+
+	// getting info from db
+	ft, err := h.service.GetByID(ftID)
+	if err != nil {
+		return c.Delete()
+	}
+
+	// forwarding message with audio
+	chatID := c.Chat().ID
+	msg := entities.NewStoredMessage(*ft.Audio_msg_id, chatID)
+	return c.Forward(msg)
+
+}
+
+func (h *FairyTalesHandler) buildDefaultMenu() {
 	h.menu.Reply(
 		h.menu.Row(*h.btnAdd),
+		h.menu.Row(*h.btnList),
 	)
-	return c.Send("Сказка успешно сохранена", h.menu)
+}
+
+////////////////////////////////////////////////////////////////
+////	HELPERS
+////////////////////////////////////////////////////////////////
+
+func formatGetCmd(id uuid.UUID) string {
+	idStr := id.String()
+	idStr = strings.ReplaceAll(idStr, "-", "_")
+	return ftGetPrefix + idStr
+}
+
+func getIDFromCmd(cmd string) (uuid.UUID, error) {
+	ftIDRaw := cmd[len(ftGetPrefix):]
+	ftIDRaw = strings.ReplaceAll(ftIDRaw, "_", "-")
+	return uuid.Parse(ftIDRaw)
 }

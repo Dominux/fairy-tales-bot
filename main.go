@@ -59,11 +59,12 @@ func main() {
 		bot.Use(middleware.Whitelist(allowedUser))
 	}
 
-	ftHandler := handlers.NewFairyTalesHandler(db, menu, &btnAdd, &btnCancel)
+	ftHandler := handlers.NewFairyTalesHandler(db, menu, &btnAdd, &btnCancel, &btnList)
 
 	bot.Handle("/start", ftHandler.OnStart)
 	bot.Handle(&btnAdd, ftHandler.OnBtnAdd)
 	bot.Handle(&btnCancel, ftHandler.OnBtnCancel)
+	bot.Handle(&btnList, ftHandler.OnList)
 	bot.Handle(tele.OnText, ftHandler.OnText)
 	bot.Handle(tele.OnVoice, ftHandler.OnVoice)
 
