@@ -24,8 +24,12 @@ var (
 )
 
 func main() {
+	var (
+		db  *sqlx.DB
+		bot *tele.Bot
+	)
+
 	// getting db conn
-	var db *sqlx.DB
 	{
 		var (
 			dbUser = os.Getenv("POSTGRES_USER")
@@ -36,15 +40,24 @@ func main() {
 		db = common.NewDB(dbUser, dbPswd, dbName)
 	}
 
-	pref := tele.Settings{
-		Token:  os.Getenv("TOKEN"),
-		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
-	}
+	{
 
-	bot, err := tele.NewBot(pref)
-	if err != nil {
-		log.Fatal(err)
-		return
+		timeoutStr := os.Getenv("LONG_POLLING_TIMEOUT")
+		timeout, err := strconv.Atoi(timeoutStr)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		pref := tele.Settings{
+			Token:  os.Getenv("TOKEN"),
+			Poller: &tele.LongPoller{Timeout: time.Duration(timeout) * time.Second},
+		}
+		bot, err = tele.NewBot(pref)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
 	}
 
 	// allowing only 1 user to use our bot
