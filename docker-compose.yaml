@@ -1,8 +1,12 @@
-version: '3.9'
+version: "3.9"
 
 volumes:
   ft-db-volume:
     name: ft-db-volume
+
+networks:
+  ft-network:
+    name: ft-network
 
 services:
   bot:
@@ -14,6 +18,8 @@ services:
       - .env
     tty: true
     restart: always
+    networks:
+      - ft-network
 
   db:
     container_name: ft-db
@@ -31,3 +37,5 @@ services:
     volumes:
       - ft-db-volume:/var/lib/postgresql/data
       - ./deploy/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - ft-network
