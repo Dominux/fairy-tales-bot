@@ -11,19 +11,19 @@ Since current project version uses long polling and not a webhook approach, we c
 3. Clone project
 4. Copy environment variables file and edit it (with using [vim](https://www.vim.org/)/[neovim](https://neovim.io/), [emacs](https://www.gnu.org/software/emacs/), [nano](https://www.nano-editor.org/), [micro](https://micro-editor.github.io/), whatever) by assigning proper values:
 
-```sh
+```bash
 cp ./.env.example ./.env
 ```
 
 5. Run build and run project:
 
-```sh
+```bash
 make up
 ```
 
 To stop containers run (if you need or want it):
 
-```sh
+```bash
 make down
 ```
 
