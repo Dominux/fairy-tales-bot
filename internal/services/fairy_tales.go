@@ -44,3 +44,7 @@ func (s *FairyTalesService) RegisterAudio(audio_msg_id int) error {
 func (s *FairyTalesService) CancelCreation() error {
 	return s.repo.DeleteUncompleted()
 }
+
+func (s *FairyTalesService) Delete(id uuid.UUID) error {
+	return s.repo.DeleteByID(id)
+}

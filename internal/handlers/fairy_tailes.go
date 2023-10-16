@@ -5,29 +5,33 @@ import (
 	"log"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	tele "gopkg.in/telebot.v3"
 
 	"github.com/Dominux/fairy-tales-bot/internal/common"
 	"github.com/Dominux/fairy-tales-bot/internal/entities"
 	"github.com/Dominux/fairy-tales-bot/internal/services"
-	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
-const ftGetPrefix = "/get_ft"
+const (
+	ftGetPrefix = "/get_ft"
+	ftDelPrefix = "/del_ft"
+)
 
 type FairyTalesHandler struct {
 	service *services.FairyTalesService
 
-	menu      *tele.ReplyMarkup
-	btnAdd    *tele.Btn
-	btnCancel *tele.Btn
-	btnList   *tele.Btn
+	menu       *tele.ReplyMarkup
+	btnAdd     *tele.Btn
+	btnCancel  *tele.Btn
+	btnGetList *tele.Btn
+	btnDelList *tele.Btn
 }
 
-func NewFairyTalesHandler(db *sqlx.DB, menu *tele.ReplyMarkup, btnAdd *tele.Btn, btnCancel *tele.Btn, btnList *tele.Btn) FairyTalesHandler {
+func NewFairyTalesHandler(db *sqlx.DB, menu *tele.ReplyMarkup, btnAdd *tele.Btn, btnCancel *tele.Btn, btnGetList *tele.Btn, btnDelList *tele.Btn) FairyTalesHandler {
 	service := services.NewFairyTalesService(db)
-	return FairyTalesHandler{service: &service, menu: menu, btnAdd: btnAdd, btnCancel: btnCancel, btnList: btnList}
+	return FairyTalesHandler{service: &service, menu: menu, btnAdd: btnAdd, btnCancel: btnCancel, btnGetList: btnGetList, btnDelList: btnDelList}
 }
 
 func (h *FairyTalesHandler) OnStart(c tele.Context) error {
@@ -61,7 +65,7 @@ func (h *FairyTalesHandler) OnBtnCancel(c tele.Context) error {
 		chat_id := c.Chat().ID
 		common.DeleteMessagesInterval(c.Bot(), chat_id, ft.Init_msg_id, current_msg_id)
 
-		// initing fairy tale creation
+		// canceling fairy tale creation
 		h.service.CancelCreation()
 	}()
 
@@ -74,6 +78,8 @@ func (h *FairyTalesHandler) OnText(c tele.Context) error {
 	msgText := c.Message().Text
 	if strings.HasPrefix(msgText, ftGetPrefix) {
 		return h.OnGet(c)
+	} else if strings.HasPrefix(msgText, ftDelPrefix) {
+		return h.OnDel(c)
 	}
 
 	// getting fairy tale stage
@@ -126,12 +132,20 @@ func (h *FairyTalesHandler) OnVoice(c tele.Context) error {
 	return c.Send("Сказка успешно сохранена", h.menu)
 }
 
-func (h *FairyTalesHandler) OnList(c tele.Context) error {
+func (h *FairyTalesHandler) OnGetList(c tele.Context) error {
+	return h.onList(c, ftGetPrefix)
+}
+
+func (h *FairyTalesHandler) OnDelList(c tele.Context) error {
+	return h.onList(c, ftDelPrefix)
+}
+
+func (h *FairyTalesHandler) onList(c tele.Context, symbol string) error {
 	fts, _ := h.service.List()
 
 	msg := ""
 	for _, ft := range fts {
-		cmd := formatGetCmd(ft.ID)
+		cmd := formatCmd(ft.ID, symbol)
 		line := fmt.Sprintf("• %s — %s\n", *ft.Name, cmd)
 		msg += line
 	}
@@ -142,7 +156,7 @@ func (h *FairyTalesHandler) OnList(c tele.Context) error {
 func (h *FairyTalesHandler) OnGet(c tele.Context) error {
 	// getting and parsing fairy tale id
 	msgText := c.Message().Text
-	ftID, err := getIDFromCmd(msgText)
+	ftID, err := getIDFromGetCmd(msgText)
 	if err != nil {
 		return c.Delete()
 	}
@@ -157,13 +171,41 @@ func (h *FairyTalesHandler) OnGet(c tele.Context) error {
 	chatID := c.Chat().ID
 	msg := entities.NewStoredMessage(*ft.Audio_msg_id, chatID)
 	return c.Forward(msg)
+}
 
+func (h *FairyTalesHandler) OnDel(c tele.Context) error {
+	// getting and parsing fairy tale id
+	msgText := c.Message().Text
+	ftID, err := getIDFromDelCmd(msgText)
+	if err != nil {
+		return c.Delete()
+	}
+
+	// getting from db
+	ft, err := h.service.GetByID(ftID)
+	if err != nil {
+		return c.Delete()
+	}
+
+	defer func() {
+		// deleting audio message
+		chatID := c.Chat().ID
+		msg := entities.NewStoredMessage(*ft.Audio_msg_id, chatID)
+		c.Bot().Delete(msg)
+	}()
+
+	// deleting in db
+	if err := h.service.Delete(ftID); err != nil {
+		return c.Delete()
+	}
+	return c.Send("Сказка успешно удалена")
 }
 
 func (h *FairyTalesHandler) buildDefaultMenu() {
 	h.menu.Reply(
 		h.menu.Row(*h.btnAdd),
-		h.menu.Row(*h.btnList),
+		h.menu.Row(*h.btnGetList),
+		h.menu.Row(*h.btnDelList),
 	)
 }
 
@@ -171,14 +213,22 @@ func (h *FairyTalesHandler) buildDefaultMenu() {
 ////	HELPERS
 ////////////////////////////////////////////////////////////////
 
-func formatGetCmd(id uuid.UUID) string {
-	idStr := id.String()
-	idStr = strings.ReplaceAll(idStr, "-", "_")
-	return ftGetPrefix + idStr
+func getIDFromGetCmd(cmd string) (uuid.UUID, error) {
+	return getIDFromCmd(cmd, ftGetPrefix)
 }
 
-func getIDFromCmd(cmd string) (uuid.UUID, error) {
-	ftIDRaw := cmd[len(ftGetPrefix):]
+func getIDFromDelCmd(cmd string) (uuid.UUID, error) {
+	return getIDFromCmd(cmd, ftDelPrefix)
+}
+
+func formatCmd(id uuid.UUID, symbol string) string {
+	idStr := id.String()
+	idStr = strings.ReplaceAll(idStr, "-", "_")
+	return symbol + idStr
+}
+
+func getIDFromCmd(cmd string, symbol string) (uuid.UUID, error) {
+	ftIDRaw := cmd[len(symbol):]
 	ftIDRaw = strings.ReplaceAll(ftIDRaw, "_", "-")
 	return uuid.Parse(ftIDRaw)
 }

@@ -18,9 +18,10 @@ import (
 var (
 	menu = &tele.ReplyMarkup{ResizeKeyboard: true}
 
-	btnAdd    = menu.Text("➕ Добавить сказку")
-	btnCancel = menu.Text("❌ Отменить")
-	btnList   = menu.Text("📚 Список сказок")
+	btnAdd     = menu.Text("➕ Добавить сказку")
+	btnCancel  = menu.Text("❌ Отменить")
+	btnGetList = menu.Text("📚 Список сказок")
+	btnDelList = menu.Text("🗑 Список сказок на удаление")
 )
 
 func main() {
@@ -72,12 +73,13 @@ func main() {
 		bot.Use(middleware.Whitelist(allowedUser))
 	}
 
-	ftHandler := handlers.NewFairyTalesHandler(db, menu, &btnAdd, &btnCancel, &btnList)
+	ftHandler := handlers.NewFairyTalesHandler(db, menu, &btnAdd, &btnCancel, &btnGetList, &btnDelList)
 
 	bot.Handle("/start", ftHandler.OnStart)
 	bot.Handle(&btnAdd, ftHandler.OnBtnAdd)
 	bot.Handle(&btnCancel, ftHandler.OnBtnCancel)
-	bot.Handle(&btnList, ftHandler.OnList)
+	bot.Handle(&btnGetList, ftHandler.OnGetList)
+	bot.Handle(&btnDelList, ftHandler.OnDelList)
 	bot.Handle(tele.OnText, ftHandler.OnText)
 	bot.Handle(tele.OnVoice, ftHandler.OnVoice)
 

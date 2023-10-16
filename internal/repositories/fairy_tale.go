@@ -68,3 +68,9 @@ func (repo FairyTalesRepository) DeleteUncompleted() error {
 	_, err := repo.db.Exec(query, entities.Created)
 	return err
 }
+
+func (repo FairyTalesRepository) DeleteByID(id uuid.UUID) error {
+	query := `DELETE FROM fairy_tales WHERE id = $1`
+	_, err := repo.db.Exec(query, id)
+	return err
+}
